@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="통풍 병리 기전을 한 장의 지도로 그리고, 약을 누르면 작용 지점이 표시되는 학습용 페이지">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>통풍 약리 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 제목 → 고정 약물 바(칩 + 한 줄 요약) → 한 장짜리 병리 지도(SVG, 4개 구획) → 선택 항목 상세 카드 */
+:root{
+  --bg:#F5F4F8;
+  --surface:#FFFFFF;
+  --sunk:#ECEAF2;
+  --fg:#1C1A25;
+  --muted:#5F5B6E;
+  --line:#DCD9E4;
+  --nb-stroke:#C6C1D2;
+  --arrow:#958FA8;
+  --accent:#A12A5E;
+  --on-accent:#FFFFFF;
+  --acute:#8A5F00;
+  --acute-bg:#FBF0D3;
+  --on-acute:#FFFFFF;
+  --ult:#1F55C4;
+  --ult-bg:#E3EBFB;
+  --on-ult:#FFFFFF;
+  --ok:#17784A;
+  --rg-a:#EFEEF5;
+  --rg-b:#F8EBEF;
+  --rg-c:#E9F1F2;
+  --rg-d:#F1EEF6;
+  --rg-stroke:#E0DCE8;
+  --cell:rgba(255,255,255,.65);
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14131A;--surface:#25222F;--sunk:#1B1923;--fg:#ECEAF3;--muted:#A6A2B5;--line:#38344A;--nb-stroke:#4C4762;--arrow:#7A748F;
+    --accent:#E5679F;--on-accent:#1A0A12;
+    --acute:#EDBB4C;--acute-bg:#3A2E12;--on-acute:#1A1405;
+    --ult:#8AB0FF;--ult-bg:#1C2948;--on-ult:#0B1630;
+    --ok:#4BC387;
+    --rg-a:#1D1C27;--rg-b:#271B22;--rg-c:#192324;--rg-d:#1F1C29;--rg-stroke:#2F2C3B;--cell:rgba(255,255,255,.04);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14131A;--surface:#25222F;--sunk:#1B1923;--fg:#ECEAF3;--muted:#A6A2B5;--line:#38344A;--nb-stroke:#4C4762;--arrow:#7A748F;
+  --accent:#E5679F;--on-accent:#1A0A12;
+  --acute:#EDBB4C;--acute-bg:#3A2E12;--on-acute:#1A1405;
+  --ult:#8AB0FF;--ult-bg:#1C2948;--on-ult:#0B1630;
+  --ok:#4BC387;
+  --rg-a:#1D1C27;--rg-b:#271B22;--rg-c:#192324;--rg-d:#1F1C29;--rg-stroke:#2F2C3B;--cell:rgba(255,255,255,.04);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+h1,h2,h3{text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1320px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+[data-cls="acute"]{--c:var(--acute);--cbg:var(--acute-bg);--on-c:var(--on-acute)}
+[data-cls="ult"]{--c:var(--ult);--cbg:var(--ult-bg);--on-c:var(--on-ult)}
+.muted{color:var(--muted)}
+
+/* header */
+.top{padding-block:26px 6px;display:grid;gap:6px}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:500}
+h1{margin:0;font-size:clamp(28px,3.4vw,38px);line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.lede{color:var(--muted);max-width:70ch}
+
+/* sticky drug bar */
+.controls{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.controls-in{padding-block:12px}
+.chiprow{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+.cgroup{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.cglabel{font-size:12.5px;font-weight:600;color:var(--c);margin-right:2px;white-space:nowrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 13px;font-size:14px;font-weight:500;cursor:pointer;line-height:1.4;transition:background-color .15s,border-color .15s,color .15s}
+.chip:hover{border-color:var(--c,var(--fg))}
+.chip[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:var(--on-c)}
+.chip.all[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.chip.lit{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.summary{margin-top:10px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:14.5px;line-height:1.5}
+.summary b{font-weight:700}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 10px;border-radius:999px;background:var(--cbg);color:var(--c);white-space:nowrap}
+.pill-rg{background:var(--sunk);color:var(--accent)}
+.tag{font-family:var(--font-mono);font-size:12.5px;color:var(--c)}
+.more{border:0;background:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0;font-size:13.5px;white-space:nowrap}
+@media (max-width:899px){.controls{position:static;border-bottom:0}}
+
+/* map */
+.mapcard{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:8px}
+.mapscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+.map{display:block;width:100%;height:auto;font-family:var(--font-body)}
+.swipe{display:none;font-size:12.5px;color:var(--muted);padding:6px 8px 0}
+@media (max-width:899px){.map{min-width:1000px}.swipe{display:block}}
+.maplegend{display:flex;flex-wrap:wrap;gap:6px 20px;padding:10px 8px 4px;margin:0;list-style:none;font-size:12.5px;color:var(--muted)}
+.maplegend li{display:flex;align-items:center;gap:7px}
+.lg{display:inline-block;width:26px;height:14px;border-radius:7px}
+.lg.a{background:var(--acute)} .lg.u{background:var(--ult)}
+.lg.sec{border:1.5px dashed var(--fg)} .lg.sel{border:2px solid var(--accent);border-radius:4px;width:20px}
+
+.rg-a{fill:var(--rg-a)} .rg-b{fill:var(--rg-b)} .rg-c{fill:var(--rg-c)} .rg-d{fill:var(--rg-d)}
+.rg{stroke:var(--rg-stroke);stroke-width:1}
+.rgl{fill:var(--fg);font-size:15px;font-weight:700}
+.rgs{fill:var(--muted);font-size:12px;font-weight:400}
+.cell{fill:var(--cell);stroke:var(--nb-stroke);stroke-dasharray:3 3}
+.mem{fill:var(--muted);font-size:11px}
+.edge{fill:none;stroke:var(--arrow);stroke-width:1.6;transition:opacity .25s}
+.edge.dash{stroke-dasharray:5 4}
+.ah{fill:var(--arrow)}
+.dotj{fill:var(--arrow)}
+.xmark{stroke:var(--accent);stroke-width:2.2;stroke-linecap:round}
+.el{fill:var(--muted);font-size:11px;transition:opacity .25s}
+.n{cursor:pointer;transition:opacity .25s}
+.n:focus{outline:none}
+.nb{fill:var(--surface);stroke:var(--nb-stroke);stroke-width:1.2;transition:fill .25s,stroke .25s}
+.n.dashed .nb{stroke-dasharray:5 4}
+.n:hover .nb{stroke:var(--arrow)}
+.n:focus-visible .nb{stroke:var(--accent);stroke-width:2.6}
+.nt{fill:var(--fg);font-size:14px;font-weight:600}
+.nt.big{font-size:17px;font-weight:700}
+.nt.sm{font-size:12.5px}
+.nt.strong{font-size:15px;font-weight:700;fill:var(--accent)}
+.nt.xl{font-size:21px;font-weight:600}
+.ns{fill:var(--muted);font-size:11.5px}
+.ns.sm{font-size:10.5px}
+.mono{font-family:var(--font-mono)}
+.gbar{fill:var(--line)}
+.gzone{fill:var(--accent);opacity:.55}
+.gtick-ok{stroke:var(--ok);stroke-width:2}
+.gtick-sat{stroke:var(--accent);stroke-width:2}
+.gl-ok{fill:var(--ok);font-size:10.5px;font-weight:600}
+.gl-sat{fill:var(--accent);font-size:10.5px;font-weight:600}
+.gl{fill:var(--muted);font-size:10px}
+.fx{fill:var(--c);font-size:11.5px;font-weight:700}
+.map.focus .n{opacity:.3}
+.map.focus .n.hit,.map.focus .n.hit2,.map.focus .n.fxon{opacity:1}
+.map.focus .edge,.map.focus .el,.map.focus .dotj,.map.focus .xmark{opacity:.4}
+.n.hit .nb{fill:var(--cbg);stroke:var(--c);stroke-width:2.6}
+.n.hit2 .nb{stroke:var(--c);stroke-width:2;stroke-dasharray:6 4}
+.n.fxon .nb{stroke:var(--c);stroke-dasharray:2 3;stroke-width:1.6}
+.n.sel .nb{stroke:var(--accent);stroke-width:2.6;stroke-dasharray:none}
+.mk{pointer-events:none;animation:pop .35s ease-out both}
+.mk rect{fill:var(--c)}
+.mkt{fill:var(--on-c);font-size:12px;font-weight:600}
+.mk.sec rect{fill:var(--surface);stroke:var(--c);stroke-width:1.5;stroke-dasharray:4 3}
+.mk.sec .mkt,.mk.fx .mkt{fill:var(--c)}
+.mk.fx rect{fill:var(--surface);stroke:var(--c);stroke-width:1.2}
+@keyframes pop{from{opacity:0;transform:translateY(5px)}}
+
+/* detail */
+.detail{padding-block:28px 12px}
+.d-head{display:grid;gap:4px;margin-bottom:14px;justify-items:start}
+.d-head h2{margin:2px 0 0;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-.01em}
+.d-head p{max-width:75ch}
+.en{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.facts{margin:0 0 14px;display:grid;gap:8px;padding:12px 16px;border-radius:12px;background:var(--sunk)}
+.facts > div{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:baseline}
+.facts dt{font-size:13px;color:var(--muted)}
+.facts dd{margin:0;font-weight:600}
+.ttype{font-weight:400;font-size:12.5px;color:var(--muted);margin-left:6px}
+.links{display:flex;flex-wrap:wrap;gap:6px}
+.link{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 11px;font-size:13.5px;font-weight:500;cursor:pointer}
+.link small{color:var(--muted);font-weight:400;margin-left:2px}
+.link:hover{border-color:var(--accent);color:var(--accent)}
+.d-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:8px;align-content:start;min-width:0}
+.card h3{margin:0;font-size:13.5px;color:var(--accent);font-weight:600}
+.chain{margin:0;padding:0;list-style:none;counter-reset:c;display:grid;gap:6px}
+.chain li{counter-increment:c;display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px}
+.chain li::before{content:counter(c);font-family:var(--font-mono);font-size:11.5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--sunk);color:var(--muted);margin-top:1px}
+.bul{margin:0;padding-left:18px;display:grid;gap:4px}
+.ae{margin:0;display:grid}
+.ae > div{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line)}
+.ae > div:first-child{border-top:0;padding-top:0}
+.ae dt{font-weight:600}
+.ae dd{margin:0;color:var(--muted);font-size:14px}
+.ae dd b{color:var(--c);margin-right:4px}
+.note{font-size:13.5px;padding:10px 12px;border-radius:8px;background:var(--sunk)}
+.dose{font-size:13.5px;padding:10px 12px;border-radius:8px;border:1px dashed var(--nb-stroke)}
+.dose b{margin-right:8px}
+.dlinks{display:flex;flex-wrap:wrap;gap:6px}
+.dlink{display:grid;gap:0;text-align:left;padding:7px 12px;border:1px solid var(--c);border-radius:9px;background:var(--cbg);cursor:pointer}
+.dlink.sub{background:var(--surface);border-style:dashed}
+.dlink b{font-weight:600}
+.dlink span{font-family:var(--font-mono);font-size:12px;color:var(--c)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--sunk)}
+tbody tr:last-child td{border-bottom:0}
+.rowbtn{border:1px solid var(--c);background:var(--cbg);color:var(--fg);border-radius:999px;padding:3px 12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rowbtn:hover{background:var(--c);color:var(--on-c)}
+td .mono{font-size:13px}
+
+.foot{padding-block:8px 36px;font-size:12.5px;color:var(--muted);display:grid;gap:4px}
+.foot p{max-width:92ch}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <p class="eyebrow">Gout · 병리 기전 × 약물 작용점</p>
+  <h1>통풍 약리 지도</h1>
+  <p class="lede">요산이 만들어지고 배설되는 과정부터 관절의 결정과 염증까지 한 장의 지도로 그렸습니다. 약을 누르면 지도 위에 그 약의 작용 지점이 표시됩니다.</p>
+</header>
+
+<div class="controls" id="controls">
+  <div class="wrap controls-in">
+    <div class="chiprow" id="chips"></div>
+    <div class="summary" id="summary" aria-live="polite"></div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="mapcard">
+    <p class="swipe">지도를 옆으로 밀면 전체가 보입니다.</p>
+    <div class="mapscroll" id="mapscroll">
+      <svg class="map" id="map" viewBox="0 0 1200 840" role="group" aria-label="통풍 병리 기전 지도"></svg>
+    </div>
+    <ul class="maplegend">
+      <li><i class="lg a"></i>단기 · 급성 염증 억제</li>
+      <li><i class="lg u"></i>장기 · 요산 저하</li>
+      <li><i class="lg sec"></i>부가 작용점</li>
+      <li><i class="lg sel"></i>선택한 단계</li>
+      <li>⊣ 억제 · ↓↑ 결과적 변화 · 지도의 칸을 누르면 설명이 나옵니다</li>
+    </ul>
+  </div>
+  <section class="detail" id="detail" aria-live="polite"></section>
+</main>
+
+<footer class="wrap foot">
+  <p>학습용 요약입니다. 실제 용량·금기는 국내 허가사항과 진료지침을 확인하세요.</p>
+  <p>근거: 대한류마티스학회 2023 한국 통풍 진료지침, ACR 2020 통풍 관리지침, NLRP3 inflammasome 리뷰, 국내 의약품 허가사항.</p>
+</footer>
+
+<script>
+(() => {
+const REG = { A:'① 요산 생성 · 간·조직', B:'혈액', C:'② 요산 배설 · 신장·장', D:'③ 결정 침착과 염증 · 관절' };
+
+/* ---------- map nodes (viewBox 1200 × 840) ---------- */
+const NODES = {
+  purine:{ rg:'A', x:40, y:60, w:364, h:60, t:'퓨린 공급 · 분해', s:'식이 퓨린 · 세포 회전 · 과당·알코올(ATP 분해)',
+    what:['DNA·RNA와 ATP·GTP에 들어 있는 퓨린 골격이 분해되면 hypoxanthine이 됩니다.','세포 회전이 빠르거나 ATP 분해가 늘면 이 흐름이 커집니다.'],
+    causes:['혈액암 · 종양용해증후군 · 심한 건선 · 용혈: 세포 회전 증가','과당: 간의 fructokinase가 ATP를 급히 소모 → AMP↑ → 퓨린 분해↑','음주: ATP 분해↑, 맥주는 퓨린도 함유'],
+    extra:'이 단계를 직접 막는 약은 없습니다. 고과당 음료와 음주를 줄이는 것이 이 단계에 대한 대책입니다.' },
+  hypo:{ rg:'A', x:40, y:150, w:170, h:40, t:'Hypoxanthine', pill:true, mono:true,
+    what:['퓨린 분해의 중간 산물입니다. XOR이 이것을 xanthine으로 바꿉니다.','알로푸리놀은 hypoxanthine과 구조가 닮은 퓨린 유사체입니다.'] },
+  xan:{ rg:'A', x:40, y:226, w:170, h:40, t:'Xanthine', pill:true, mono:true,
+    what:['XOR이 xanthine을 다시 요산으로 바꿉니다. XOR을 막으면 앞 단계 물질이 남는 대신 요산은 적게 만들어집니다.'] },
+  urate:{ rg:'A', x:40, y:302, w:170, h:44, t:'요산', pill:true, strong:true,
+    what:['인간에서는 퓨린 대사의 최종 산물입니다. 생리적 pH에서는 대부분 요산염(urate) 형태로 존재합니다.','만들어진 요산은 혈액으로 들어갑니다.'] },
+  xor:{ rg:'A', x:240, y:196, w:164, h:96, custom:'xor', t:'XOR', label:'XOR (xanthine oxidoreductase)',
+    what:['Xanthine oxidoreductase가 hypoxanthine → xanthine → 요산의 마지막 두 단계를 모두 맡습니다. Xanthine oxidase(XO)는 이 효소의 한 형태입니다.','요산 생성의 병목이라 여기를 막으면 만들어지는 요산이 줄어듭니다.'] },
+  uricase:{ rg:'A', x:300, y:304, w:104, h:40, t:'알란토인', pill:true, dashed:true, mk:'bottom', label:'Uricase → 알란토인',
+    what:['대부분의 포유류는 uricase로 요산을 물에 잘 녹는 알란토인으로 바꿉니다.','인간은 진화 과정에서 이 유전자가 기능을 잃어 요산을 분해하지 못하고 배설에만 의존합니다.'],
+    causes:['모든 인간에게 해당: 분해 경로가 없어 혈중 요산이 다른 포유류보다 높음'] },
+  serum:{ rg:'B', x:460, y:300, w:280, h:140, custom:'serum', t:'혈중 요산', label:'혈중 요산 (고요산혈증)',
+    what:['혈중 요산은 생성량과 배설량의 균형으로 정해집니다.','37℃에서 요산나트륨의 포화 농도는 약 6.8 mg/dL입니다. 이를 계속 넘으면 결정이 생기기 쉬워집니다.'],
+    causes:['통풍 환자 다수는 생성 증가보다 배설 감소가 원인'],
+    extra:'치료 목표는 정상범위가 아니라 결정이 녹을 만큼 낮추는 것입니다. 일반 환자 6.0 mg/dL 미만, 통풍결절·중증 환자는 5.0 mg/dL 미만을 고려합니다.' },
+  glut9:{ rg:'C', x:770, y:133, w:84, h:34, t:'GLUT9', pill:true, mono:true,
+    what:['URAT1로 세포 안에 들어온 요산을 혈액 쪽으로 내보내 재흡수를 마무리합니다.'],
+    causes:['GLUT9 유전 변이가 혈중 요산 수치에 영향'] },
+  urat1:{ rg:'C', x:998, y:133, w:84, h:34, t:'URAT1', pill:true, mono:true,
+    what:['근위세뇨관 관강측에서 걸러진 요산을 세포 안으로 다시 들입니다. 여과된 요산의 약 90%가 재흡수로 혈액에 돌아갑니다.','젖산 같은 유기음이온과 교환하는 방식으로 작동합니다.'],
+    causes:['비만 · 인슐린저항성: 고인슐린혈증 → 재흡수↑','티아지드 · 루프 이뇨제, 탈수: 체액 감소 → 근위세뇨관 재흡수↑','음주: 젖산↑ → URAT1 교환 촉진 → 재흡수↑'] },
+  oat:{ rg:'C', x:770, y:223, w:84, h:34, t:'OAT1/3', pill:true, mono:true,
+    what:['혈액 쪽에서 요산과 여러 유기음이온 약물을 세뇨관 세포로 들입니다. 분비 경로의 첫 단계입니다.','페니실린 같은 약도 이 길로 분비됩니다.'] },
+  abcg2:{ rg:'C', x:992, y:223, w:96, h:34, t:'ABCG2·NPT', pill:true, mono:true, label:'ABCG2 · NPT1/4',
+    what:['세포 안의 요산을 소변 쪽으로 내보냅니다(분비).'],
+    causes:['ABCG2 기능저하 변이: 신장·장 배설 감소','저용량 아스피린: 요산 분비 억제','만성콩팥병: 여과와 배설능 전반 감소'] },
+  urine:{ rg:'C', x:1092, y:336, w:84, h:48, t:'소변 배설', s:'배설의 ~2/3', small:true, fxPos:'left',
+    what:['여과된 요산 중 최종적으로 약 10%만 소변으로 나갑니다. 요산 배설의 약 2/3가 신장 경로입니다.','요산배설촉진제를 쓰면 이 양이 늘어 소변 속 요산 농도가 올라가고, 산성뇨에서는 결석 위험이 커집니다.'] },
+  gut:{ rg:'C', x:796, y:400, w:380, h:46, t:'장 상피 ABCG2 → 대변', s:'배설의 ~1/3',
+    what:['장 상피의 ABCG2가 요산을 장관으로 내보냅니다. 요산 배설의 약 1/3을 차지합니다.'],
+    causes:['ABCG2 기능저하 변이'] },
+  priming:{ rg:'D', x:480, y:490, w:240, h:44, t:'Priming (1차 신호)', s:'TLR → NF-κB → NLRP3 · pro-IL-1β↑', small:true, mk:'right',
+    what:['TLR 등의 신호로 NF-κB가 켜지면 NLRP3와 비활성형 pro-IL-1β가 미리 만들어집니다. 염증의 1차 신호입니다.'],
+    causes:['포화지방산 · 알코올 관련 자극이 priming에 기여'] },
+  msu:{ rg:'D', x:40, y:560, w:190, h:60, t:'MSU 결정 침착', s:'바늘 모양 · 1st MTP',
+    what:['포화를 넘은 요산염이 연골·활막·힘줄에 바늘 모양 결정으로 쌓입니다. 편광현미경에서 음성 복굴절을 보입니다.','결정이 있어도 수년간 증상이 없을 수 있습니다.'],
+    causes:['엄지발가락 1st MTP: 말초라 온도가 낮아 용해도↓','보행으로 반복되는 하중','탈수 · 급격한 요산 농도 변화'],
+    extra:'요산저하제를 시작해 요산이 빨리 떨어지면 기존 결정 침착물이 흔들려 오히려 발작이 늘 수 있습니다. 그래서 처음 3~6개월은 콜키신 등으로 예방합니다.' },
+  macro:{ rg:'D', x:270, y:560, w:180, h:60, t:'대식세포 포식', s:'리소좀 손상 · K⁺ 유출',
+    what:['관절의 대식세포가 결정을 삼킵니다. 리소좀 손상, K⁺ 유출, 미토콘드리아 스트레스가 생기며 이것이 NLRP3를 켜는 2차 신호가 됩니다.'] },
+  nlrp3:{ rg:'D', x:490, y:560, w:220, h:60, t:'NLRP3 inflammasome', s:'NLRP3 · ASC · pro-caspase-1',
+    what:['NLRP3·ASC·pro-caspase-1이 모여 inflammasome이라는 단백질 복합체를 만듭니다.','통풍 염증의 출발점이며, 조립 과정에 미세소관을 통한 수송이 관여합니다.'] },
+  casp:{ rg:'D', x:750, y:560, w:170, h:60, t:'Caspase-1 활성', s:'pro-IL-1β 절단',
+    what:['inflammasome 안에서 활성화된 caspase-1이 pro-IL-1β를 잘라 성숙한 IL-1β로 만듭니다.'] },
+  il1b:{ rg:'D', x:960, y:560, w:200, h:60, t:'IL-1β 분비', s:'핵심 염증 사이토카인',
+    what:['성숙한 IL-1β가 세포 밖으로 분비됩니다. 호중구를 불러들이고 염증을 증폭하는 통풍의 핵심 사이토카인입니다.'] },
+  il1r:{ rg:'D', x:960, y:680, w:200, h:60, t:'IL-1R1 신호', s:'MyD88 → IRAK → TRAF6',
+    what:['IL-1β가 주변 세포의 IL-1R1에 결합하면 MyD88 → IRAK → TRAF6 신호가 이어집니다.'] },
+  nfkb:{ rg:'D', x:750, y:680, w:170, h:60, t:'NF-κB · MAPK', s:'염증 유전자 발현↑',
+    what:['NF-κB·MAPK가 켜지면 CXCL8 같은 케모카인, 사이토카인, COX-2 등 염증 유전자가 대량으로 발현됩니다.'] },
+  neut:{ rg:'D', x:450, y:646, w:260, h:54, t:'호중구 유입 · 활성', s:'CXCL8 → 탈과립 · ROS · 단백분해효소',
+    what:['CXCL8을 따라 호중구가 관절로 몰려와 결정을 공격하고 ROS·단백분해효소를 쏟아내 염증을 키웁니다.','호중구의 이동과 탈과립에는 미세소관이 필요합니다.'] },
+  cox:{ rg:'D', x:450, y:730, w:260, h:54, t:'COX-2 → PGE₂', s:'통각 감작 · 혈관 확장',
+    what:['PLA₂가 세포막에서 아라키돈산을 떼어내고 COX가 이를 PGE₂로 바꿉니다.','PGE₂는 통각 수용기를 예민하게 만들고 혈관을 확장시켜 통증·발적·부종을 만듭니다.'] },
+  flare:{ rg:'D', x:40, y:680, w:290, h:80, t:'급성 통풍 발작', s:'통증 · 발적 · 열감 · 부종', big:true,
+    what:['수 시간 안에 통증이 정점에 이릅니다. 극심한 통증은 결정이 찌르기 때문이 아니라 결정이 일으킨 염증과 통각 감작 때문입니다.','며칠 뒤 저절로 가라앉기도 하지만 결정은 남아 재발하고, 방치하면 통풍결절·골미란으로 진행합니다.'],
+    extra:'발작 중에는 혈중 요산이 정상일 수 있습니다. 처음 생긴 급성 단관절염에 발열이 있으면 패혈성 관절염부터 감별합니다.' }
+};
+
+/* ---------- drugs ---------- */
+const DRUGS = [
+  { id:'colc', cls:'acute', name:'콜키신', en:'Colchicine', products:'콜킨정',
+    target:'β-tubulin · 미세소관', targetShort:'β-tubulin', ttype:'구조단백질',
+    nodes:[['neut',1],['nlrp3',0]], fx:{flare:'↓ 완화'},
+    line:'β-tubulin에 결합 → 미세소관 형성 억제 → 호중구 이동·탈과립과 NLRP3 활성 감소',
+    mech:['β-tubulin에 결합해 tubulin 중합을 막음','미세소관이 만들어지지 않음','호중구 이동·탈과립 감소, NLRP3 조립과 IL-1β 활성화도 억제'],
+    why:['요산은 그대로지만, 결정이 부른 호중구 중심 염증을 끔','증상 시작 후 빨리 쓸수록 효과적','요산저하제 시작 시 발작 예방용 (0.6 mg 1일 1~2회)'],
+    ae:[['복통 · 오심 · 설사','장 상피세포의 미세소관도 같이 억제합니다. 염증세포만 골라 듣는 약이 아닙니다.'],['골수억제 · 백혈구·혈소판 감소','노출이 커지면 분열하는 세포의 미세소관(방추사)까지 막습니다.'],['신경근병증','신경·근육 세포의 미세소관 기능이 떨어집니다.']],
+    caution:['CYP3A4·P-gp 강한 억제제(클래리스로마이신, 이트라코나졸, 일부 항바이러스제) 병용 시 혈중 농도 급증 → 치명적 독성','스타틴 병용 시 근병증·횡문근융해 위험','신장·간 기능이 떨어지면 축적되므로 감량'],
+    dose:'급성 발작: 1.2 mg 복용 후 1시간 뒤 0.6 mg (1시간 동안 총 1.8 mg)' },
+  { id:'nsaid', cls:'acute', name:'NSAIDs', en:'나프록센 · 인도메타신 · 에토리콕시브',
+    target:'COX-1 / COX-2', targetShort:'COX-1/2', ttype:'효소',
+    nodes:[['cox',1]], fx:{flare:'↓ 완화'},
+    line:'COX 억제 → PGE₂ 감소 → 통증·부종 완화',
+    mech:['COX 효소 활성을 억제','아라키돈산 → PGE₂ 합성 감소','통각 감작과 혈관 반응이 줄어 통증·부종 완화'],
+    why:['급성 발작 1차 치료제 중 하나','신기능·위장관·심혈관 위험이 낮은 환자에게 적합'],
+    ae:[['위염 · 궤양 · 위장관 출혈','COX-1 억제로 위점막을 보호하는 프로스타글란딘이 줄어듭니다.'],['급성 신손상','신장의 PGE₂·PGI₂가 줄어 신혈류를 유지하지 못합니다.'],['부종 · 혈압 상승','신장에서 Na⁺와 수분이 저류됩니다.'],['혈전성 심혈관 사건','COX-2 억제로 혈관의 PGI₂는 줄고 혈소판의 TXA₂는 유지되어 균형이 깨집니다.']],
+    caution:['CKD, 소화성궤양·출혈 병력, 심부전, 심혈관질환에서는 피하거나 신중히','항응고제 병용 시 출혈 위험 증가'] },
+  { id:'steroid', cls:'acute', name:'글루코코르티코이드', short:'스테로이드', en:'Prednisolone · Triamcinolone',
+    target:'Glucocorticoid receptor (GR)', targetShort:'GR', ttype:'세포 내 핵수용체',
+    nodes:[['nfkb',1],['priming',0],['cox',0]], fx:{flare:'↓ 완화'},
+    line:'GR 결합 → NF-κB·AP-1 전사 억제 → 염증 유전자 전반 감소',
+    mech:['세포 안의 GR과 결합한 뒤 핵으로 이동','NF-κB·AP-1 전사를 억제해 사이토카인·케모카인·COX-2 발현 감소','annexin A1을 통해 PLA₂를 억제 → 프로스타글란딘 원료 감소'],
+    why:['NSAID나 콜키신을 쓰기 어려울 때 (예: 신기능 저하)','한두 관절에 국한된 발작이면 감염 배제 후 관절강 내 주사'],
+    ae:[['혈당 상승','간의 당신생이 늘고 말초 인슐린저항성이 커집니다.'],['감염 위험','면역세포와 사이토카인 반응을 넓게 억제합니다.'],['불면 · 기분 변화','중추신경계의 스테로이드 수용체에 작용합니다.'],['혈압 상승 · 체액 저류','Na⁺·수분 저류와 혈관 반응성 변화가 생깁니다.'],['골다공증 (장기 사용)','골형성은 억제하고 골흡수는 늘립니다.']],
+    caution:['단기 사용에도 고혈당·불면이 생길 수 있어 당뇨 환자는 혈당 감시','패혈성 관절염이 의심되면 먼저 배제'] },
+  { id:'anak', cls:'acute', name:'아나킨라', en:'Anakinra · 재조합 IL-1 수용체 길항제',
+    target:'IL-1R1', targetShort:'IL-1R1', ttype:'수용체',
+    nodes:[['il1r',1]], fx:{flare:'↓ 완화'},
+    line:'IL-1R1 차단 → IL-1α·IL-1β 신호 모두 차단',
+    mech:['IL-1R1에 먼저 결합해 자리를 차지','IL-1α와 IL-1β 모두 신호를 전달하지 못함','하위 NF-κB 염증 유전자 발현 감소'],
+    why:['표준 항염증제를 못 쓰거나 효과가 부족할 때 전문적으로 고려','통풍 염증의 중심축을 직접 끊음'],
+    ae:[['감염 위험','IL-1에 의존하는 선천면역 방어가 약해집니다.'],['주사 부위 반응','매일 피하주사하는 생물학적 제제입니다.']],
+    caution:['활동성 감염이 있으면 사용하지 않음','일반적인 1차 치료제가 아님'] },
+  { id:'cana', cls:'acute', name:'카나키누맙', en:'Canakinumab · 항 IL-1β 단클론항체',
+    target:'IL-1β', targetShort:'IL-1β', ttype:'사이토카인',
+    nodes:[['il1b',1]], fx:{flare:'↓ 완화'},
+    line:'IL-1β 중화 항체 → IL-1β가 수용체에 붙지 못함',
+    mech:['분비된 IL-1β에 항체가 결합','IL-1β가 IL-1R1에 붙지 못함','반감기가 길어 한 번 투여로 수 주간 효과 지속'],
+    why:['표준 항염증제를 못 쓰거나 효과가 부족할 때 전문적으로 고려'],
+    ae:[['감염 위험','IL-1β 중화로 방어 반응이 약해집니다.'],['주사 관련 반응','단백질 제제에 대한 국소·전신 반응입니다.']],
+    caution:['활동성 감염이 있으면 사용하지 않음','일반적인 1차 치료제가 아님'] },
+
+  { id:'allo', cls:'ult', name:'알로푸리놀', en:'Allopurinol', products:'자이로릭정',
+    target:'Xanthine oxidoreductase', targetShort:'XOR', ttype:'효소',
+    nodes:[['xor',1]], fx:{serum:'↓ 감소', msu:'↓ 용해'},
+    line:'퓨린 유사체 → oxypurinol과 함께 XOR 억제 → 요산 생성 감소',
+    mech:['hypoxanthine과 닮은 퓨린 유사체','체내에서 oxypurinol로 대사되고, 둘 다 XOR을 억제','hypoxanthine → xanthine → 요산 단계가 막혀 생성 감소'],
+    why:['CKD 환자를 포함해 선호되는 1차 요산저하제 (ACR 2020)','저용량으로 시작해 목표 요산까지 천천히 증량'],
+    ae:[['알로푸리놀 과민증후군 (SJS · TEN · DRESS)','요산 감소 때문이 아니라 약물 특이적 T세포 반응입니다. HLA-B*58:01과 강하게 연관됩니다.'],['신기능 저하 시 독성 증가','oxypurinol은 신장으로 제거되어 신기능이 떨어지면 쌓입니다.'],['치료 초기 발작 증가','요산이 급히 떨어지면서 기존 결정 침착물이 흔들립니다.'],['발진 · 간효소 상승 · 위장관 증상','']],
+    caution:['한국인은 HLA-B*58:01 보유율이 상대적으로 높아 시작 전 유전자 검사 권고 (ACR 조건부)','아자티오프린·6-MP 병용은 원칙적으로 피함: XO가 이들을 대사하므로 골수억제 위험'] },
+  { id:'febu', cls:'ult', name:'페북소스타트', en:'Febuxostat', products:'페브릭정',
+    target:'Xanthine oxidoreductase', targetShort:'XOR', ttype:'효소',
+    nodes:[['xor',1]], fx:{serum:'↓ 감소', msu:'↓ 용해'},
+    line:'비퓨린계 XOR 억제 → 요산 생성 감소',
+    mech:['퓨린 구조가 아닌 XOR 억제제','효소 활성 부위로 이어지는 통로에 결합','요산 생성 감소'],
+    why:['알로푸리놀을 쓰기 어려울 때 (과민반응, HLA-B*58:01 양성 등)','간 대사와 신장·장 배설을 함께 가져 경증·중등도 신기능 저하에서는 대개 용량 조절이 필요 없음'],
+    ae:[['심혈관 사망 증가 신호','CARES 연구(기존 심혈관질환 환자)에서 알로푸리놀보다 높았고, FAST 연구에서는 비열등이었습니다. 기전은 확실하지 않습니다.'],['간효소 상승 · 오심 · 발진',''],['치료 초기 발작 증가','요산이 급히 떨어지면서 기존 결정 침착물이 흔들립니다.']],
+    caution:['기존 심근경색·뇌졸중 병력이 있으면 신중히 선택','아자티오프린·6-MP 병용 금기 (골수억제)'] },
+  { id:'benz', cls:'ult', name:'벤즈브로마론', en:'Benzbromarone', products:'유리논정',
+    target:'URAT1', targetShort:'URAT1', ttype:'수송체',
+    nodes:[['urat1',1]], fx:{serum:'↓ 감소', msu:'↓ 용해', urine:'↑ 요중 요산 · 결석'},
+    line:'URAT1 억제 → 요산 재흡수 감소 → 소변 배설 증가',
+    mech:['근위세뇨관 관강측 URAT1을 억제','소변의 요산이 혈액으로 돌아가지 못함','요중 배설 증가 → 혈중 요산 감소'],
+    why:['이미 만들어진 요산을 더 많이 내보내는 약','가장 흔한 배설 감소형 고요산혈증에 기전이 맞음'],
+    ae:[['요산 신결석','소변 속 요산이 많아집니다. 산성뇨에서는 녹지 않는 비이온형 요산이 늘어 결석이 생기기 쉽습니다.'],['간독성 (드물지만 중증)','치료 기전과는 별개 문제로, 간 대사 산물과 미토콘드리아 독성이 관여하는 것으로 추정됩니다.']],
+    caution:['투여 시작 후 최소 6개월간 정기 간기능 검사','신결석 병력·간장애 환자는 주의','물을 충분히 마시고 필요하면 소변 알칼리화'] },
+  { id:'prob', cls:'ult', name:'프로베네시드', en:'Probenecid',
+    target:'URAT1 · 유기음이온 수송체(OAT)', targetShort:'URAT1 · OAT', ttype:'수송체',
+    nodes:[['urat1',1],['oat',0]], fx:{serum:'↓ 감소', msu:'↓ 용해', urine:'↑ 요중 요산 · 결석'},
+    line:'URAT1 억제로 요산 배설 증가, OAT도 억제해 다른 약의 배설을 늦춤',
+    mech:['URAT1을 억제해 요산 재흡수 감소','OAT 등 다른 유기음이온 수송도 억제','결과적으로 요산 배설 증가'],
+    why:['오래 쓰여 온 요산배설촉진제'],
+    ae:[['요산 신결석','소변으로 나가는 요산이 늘어납니다.'],['약물 상호작용','OAT를 막아 다른 약의 신장 분비까지 줄입니다.']],
+    caution:['페니실린류 등의 배설이 늦어져 혈중 농도 상승','신기능이 많이 떨어지면 효과가 줄어 부적합','요산결석 위험이 있으면 부적합'] },
+  { id:'pegl', cls:'ult', name:'페글로티카제', en:'Pegloticase · PEG 결합 uricase', sym:'+',
+    target:'요산 (기질 자체)', targetShort:'요산 → 알란토인', ttype:'요산 자체',
+    nodes:[['uricase',1]], fx:{serum:'↓ 감소', msu:'↓ 용해'},
+    line:'인간에게 없는 uricase를 보충 → 요산을 알란토인으로 분해',
+    mech:['인간에게 없는 uricase를 정맥 주사로 보충','요산 → 알란토인(수용성↑) + H₂O₂','혈중 요산을 빠르고 크게 낮춤'],
+    why:['경구 요산저하제로 조절되지 않는 난치성 만성 통풍','해외 일부 국가에서 쓰는 특수 치료제'],
+    ae:[['용혈 · 메트헤모글로빈혈증','반응 부산물인 H₂O₂를 G6PD 결핍 적혈구가 처리하지 못해 산화 손상을 입습니다.'],['효과 소실 · 주입반응 · 아나필락시스','외래 단백질이라 항약물항체가 생깁니다.']],
+    caution:['투여 전 G6PD 결핍 검사','해외에서는 항체 형성을 줄이려 메토트렉세이트와 병용'] }
+];
+const CLS = {
+  acute:{ label:'단기 · 급성 염증 억제', short:'단기' },
+  ult:{ label:'장기 · 요산 저하', short:'장기' }
+};
+const D = Object.fromEntries(DRUGS.map(d => [d.id, d]));
+const label = id => NODES[id].label || NODES[id].t;
+const mainNode = d => (d.nodes.find(x => x[1]) || d.nodes[0])[0];
+const actingOn = id => DRUGS.flatMap(d => d.nodes.filter(x => x[0] === id).map(x => ({ d, primary: !!x[1] })));
+const sym = d => d.sym || '⊣';
+const short = d => d.short || d.name;
+
+/* ---------- svg helpers ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('map');
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function tx(parent, x, y, str, cls, extra){ const t = el('text', Object.assign({ x, y, class: cls }, extra || {}), parent); t.textContent = str; return t; }
+
+const defs = el('defs', {}, svg);
+const mkr = el('marker', { id:'ah', viewBox:'0 0 10 10', refX:'10', refY:'5', markerWidth:'9', markerHeight:'9', markerUnits:'userSpaceOnUse', orient:'auto-start-reverse' }, defs);
+el('path', { d:'M0 0 L10 5 L0 10 z', class:'ah' }, mkr);
+
+const L_reg = el('g', {}, svg), L_edge = el('g', {}, svg), L_node = el('g', {}, svg), L_mk = el('g', {}, svg);
+
+/* regions */
+[['a',16,16,408,440],['b',440,16,320,440],['c',776,16,408,440],['d',16,480,1168,344]].forEach(([k,x,y,w,h]) => el('rect', { x, y, width:w, height:h, rx:16, class:'rg rg-' + k }, L_reg));
+function rlabel(x, y, a, b){ const t = el('text', { x, y, class:'rgl' }, L_reg); t.textContent = a; if (b){ const s = el('tspan', { class:'rgs', dx:'8' }, t); s.textContent = b; } }
+rlabel(36, 42, '① 요산 생성', '간 · 조직');
+rlabel(460, 42, '혈액');
+rlabel(796, 42, '② 요산 배설', '신장 근위세뇨관 · 장');
+rlabel(156, 508, '③ 결정 침착과 염증', '관절 · 선천면역');
+/* kidney cell */
+el('rect', { x:812, y:92, width:228, height:240, rx:12, class:'cell' }, L_reg);
+tx(L_reg, 812, 86, '혈관측', 'mem', { 'text-anchor':'middle' });
+tx(L_reg, 1040, 86, '관강측', 'mem', { 'text-anchor':'middle' });
+tx(L_reg, 926, 322, '근위세뇨관 세포', 'mem', { 'text-anchor':'middle' });
+
+/* edges */
+function edge(d, opts){ return el('path', Object.assign({ d, class:'edge' + (opts && opts.dash ? ' dash' : '') }, opts && opts.noHead ? {} : { 'marker-end':'url(#ah)' }), L_edge); }
+function elabel(x, y, s, anchor){ return tx(L_edge, x, y, s, 'el', anchor ? { 'text-anchor':anchor } : {}); }
+// ① generation
+edge('M125 120 V148'); edge('M125 190 V224'); edge('M125 266 V300');
+edge('M240 208 H131', { dash:true, noHead:true }); edge('M240 284 H131', { dash:true, noHead:true });
+el('circle', { cx:125, cy:208, r:3.5, class:'dotj' }, L_edge); el('circle', { cx:125, cy:284, r:3.5, class:'dotj' }, L_edge);
+edge('M210 324 H298', { dash:true });
+el('path', { d:'M248 318 L260 330 M260 318 L248 330', class:'xmark' }, L_edge);
+elabel(254, 312, 'uricase', 'middle').classList.add('mono');
+elabel(254, 345, '인간 결손', 'middle');
+edge('M125 346 V400 H458'); elabel(140, 392, '생성된 요산 → 혈액');
+// ② excretion
+edge('M500 300 V62 H1140 V96'); elabel(510, 84, '사구체 여과');
+edge('M1140 100 V334'); elabel(1150, 200, '원뇨');
+edge('M1140 150 H1084'); edge('M998 150 H856'); edge('M770 150 H620 V298');
+elabel(632, 142, '재흡수 ~90%'); elabel(926, 166, '요산', 'middle');
+edge('M700 300 V240 H768'); edge('M854 240 H990'); edge('M1088 240 H1138');
+elabel(708, 258, '분비'); elabel(922, 256, '요산', 'middle');
+edge('M740 423 H794');
+// blood → joint
+edge('M540 440 V468 H135 V558'); elabel(146, 548, '포화 초과 → 결정화');
+// ③ inflammation
+edge('M230 590 H268'); edge('M450 590 H488'); edge('M710 590 H748'); edge('M920 590 H958');
+edge('M600 534 V558');
+edge('M1060 620 V678'); elabel(1068, 652, '주변 세포로');
+edge('M960 710 H922');
+edge('M750 710 H730 V673 H712'); edge('M730 710 V757 H712');
+edge('M450 673 H390 V705 H332'); edge('M450 757 H390 V735 H332');
+elabel(40, 786, '저절로 가라앉아도 결정은 남음 → 재발 · 통풍결절');
+
+/* nodes */
+for (const [id, N] of Object.entries(NODES)){
+  const g = el('g', { class:'n' + (N.dashed ? ' dashed' : ''), 'data-node':id, tabindex:'0', role:'button', 'aria-label':label(id) }, L_node);
+  N.g = g;
+  el('rect', { class:'nb', x:N.x, y:N.y, width:N.w, height:N.h, rx:N.pill ? 9 : 11 }, g);
+  if (N.custom === 'xor'){
+    tx(g, 322, 236, 'XOR', 'nt xl mono', { 'text-anchor':'middle' });
+    tx(g, 322, 256, 'xanthine oxidoreductase', 'ns sm mono', { 'text-anchor':'middle' });
+    tx(g, 322, 276, '마지막 두 단계를 촉매', 'ns', { 'text-anchor':'middle' });
+  } else if (N.custom === 'serum'){
+    tx(g, 476, 326, '혈중 요산', 'nt big');
+    tx(g, 476, 347, '체내 요산 = 생성 − 배설', 'ns');
+    const gx = 476, gw = 248, u = gw / 10;
+    el('rect', { x:gx, y:382, width:gw, height:8, rx:4, class:'gbar' }, g);
+    el('rect', { x:gx + 6.8 * u, y:382, width:gw - 6.8 * u, height:8, rx:4, class:'gzone' }, g);
+    el('line', { x1:gx + 6 * u, x2:gx + 6 * u, y1:378, y2:394, class:'gtick-ok' }, g);
+    el('line', { x1:gx + 6.8 * u, x2:gx + 6.8 * u, y1:378, y2:394, class:'gtick-sat' }, g);
+    tx(g, gx + 6 * u - 4, 373, '목표 < 6', 'gl-ok', { 'text-anchor':'end' });
+    tx(g, gx + 6.8 * u + 4, 373, '포화 6.8', 'gl-sat');
+    tx(g, gx, 406, '0', 'gl'); tx(g, gx + gw, 406, '10 mg/dL', 'gl', { 'text-anchor':'end' });
+    tx(g, 476, 428, '포화를 넘으면 관절에 결정이 생기기 쉬움', 'ns sm');
+  } else if (N.pill){
+    tx(g, N.x + N.w / 2, N.y + N.h / 2 + 4.5, N.t, 'nt' + (N.mono ? ' mono' : '') + (N.strong ? ' strong' : ''), { 'text-anchor':'middle' });
+  } else {
+    const pad = N.small ? 10 : 14;
+    const ty = N.big ? N.y + N.h / 2 - 5 : N.small ? N.y + N.h / 2 - 3 : N.y + N.h / 2 - 4;
+    const sy = N.big ? N.y + N.h / 2 + 16 : N.small ? N.y + N.h / 2 + 12 : N.y + N.h / 2 + 14;
+    tx(g, N.x + pad, ty, N.t, 'nt' + (N.big ? ' big' : '') + (N.small ? ' sm' : ''));
+    if (N.s) tx(g, N.x + pad, sy, N.s, 'ns' + (N.small ? ' sm' : ''));
+    N.ty = ty;
+  }
+  if (N.fxPos !== 'left'){
+    const fy = N.custom === 'serum' ? 326 : (N.ty || N.y + 24);
+    N.fxEl = tx(g, N.x + N.w - 12, fy, '', 'fx', { 'text-anchor':'end' });
+  }
+}
+
+/* markers */
+function marker(id, text, style, cls){
+  const N = NODES[id];
+  const g = el('g', { class:'mk ' + style, 'data-cls':cls }, L_mk);
+  const r = el('rect', { rx:10, height:20 }, g);
+  const t = tx(g, 0, 0, text, 'mkt');
+  let w = 80; try { w = t.getComputedTextLength() + 18; } catch (e) {}
+  const pos = style === 'fx' && N.fxPos === 'left' ? 'left' : (N.mk || 'top');
+  let x, y;
+  if (pos === 'top'){ x = N.x + N.w - w; y = N.y - 16; }
+  else if (pos === 'bottom'){ x = N.x + N.w - w; y = N.y + N.h + 4; }
+  else if (pos === 'right'){ x = N.x + N.w + 6; y = N.y + N.h / 2 - 10; }
+  else { x = N.x - w - 6; y = N.y + N.h / 2 - 10; }
+  r.setAttribute('x', x); r.setAttribute('y', y); r.setAttribute('width', w);
+  t.setAttribute('x', x + 9); t.setAttribute('y', y + 14.5);
+}
+
+/* ---------- state + render ---------- */
+let state = { mode:'all' };
+const chipsEl = document.getElementById('chips'), summaryEl = document.getElementById('summary'), detailEl = document.getElementById('detail');
+const controls = document.getElementById('controls'), mapScroll = document.getElementById('mapscroll');
+const mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
+const beh = () => mqReduce.matches ? 'auto' : 'smooth';
+
+chipsEl.innerHTML = `<button type="button" class="chip all" data-all aria-pressed="true">전체 보기</button>` +
+  ['acute','ult'].map(c => `<div class="cgroup" data-cls="${c}"><span class="cglabel">${CLS[c].label}</span>${
+    DRUGS.filter(d => d.cls === c).map(d => `<button type="button" class="chip" data-drug="${d.id}" data-cls="${c}" aria-pressed="false">${d.name}</button>`).join('')
+  }</div>`).join('');
+
+function paintMap(){
+  L_mk.replaceChildren();
+  const d = state.mode === 'drug' ? D[state.id] : null;
+  svg.classList.toggle('focus', !!d);
+  if (d) svg.setAttribute('data-cls', d.cls); else svg.removeAttribute('data-cls');
+  for (const [id, N] of Object.entries(NODES)){
+    const t = d && d.nodes.find(x => x[0] === id);
+    const fx = d && d.fx && d.fx[id];
+    N.g.classList.toggle('hit', !!(t && t[1]));
+    N.g.classList.toggle('hit2', !!(t && !t[1]));
+    N.g.classList.toggle('fxon', !!fx && !t);
+    N.g.classList.toggle('sel', state.mode === 'node' && state.id === id);
+    N.g.setAttribute('aria-pressed', String(state.mode === 'node' && state.id === id));
+    if (N.fxEl) N.fxEl.textContent = fx || '';
+  }
+  if (d){
+    d.nodes.forEach(([id, p]) => marker(id, p ? `${sym(d)} ${short(d)}` : '⊣ 부가 작용', p ? 'pri' : 'sec', d.cls));
+    Object.entries(d.fx || {}).forEach(([id, s]) => { if (NODES[id].fxPos === 'left') marker(id, s, 'fx', d.cls); });
+  } else {
+    const per = {};
+    DRUGS.forEach(x => x.nodes.forEach(([id, p]) => { if (p) (per[id] = per[id] || []).push(x); }));
+    Object.entries(per).forEach(([id, list]) => marker(id, `${sym(list[0])} ${list.map(short).join(' · ')}`, 'pri', list[0].cls));
+  }
+}
+
+function paintChips(){
+  const acts = state.mode === 'node' ? actingOn(state.id).map(a => a.d.id) : [];
+  chipsEl.querySelector('[data-all]').setAttribute('aria-pressed', String(state.mode === 'all'));
+  chipsEl.querySelectorAll('[data-drug]').forEach(b => {
+    b.setAttribute('aria-pressed', String(state.mode === 'drug' && state.id === b.dataset.drug));
+    b.classList.toggle('lit', acts.includes(b.dataset.drug));
+  });
+}
+
+function paintSummary(){
+  if (state.mode === 'all'){
+    summaryEl.innerHTML = `<b>전체 보기</b><span class="muted">모든 약의 주 작용점을 지도에 표시했습니다. 약을 누르면 그 약만, 지도의 칸을 누르면 그 단계의 설명을 보여 줍니다.</span>`;
+  } else if (state.mode === 'drug'){
+    const d = D[state.id];
+    summaryEl.innerHTML = `<span class="pill" data-cls="${d.cls}">${CLS[d.cls].short}</span><b>${d.name}</b><span class="tag" data-cls="${d.cls}">${d.targetShort}</span><span class="muted">${d.ttype}</span><span>${d.line}</span><button type="button" class="more" data-more>자세히 ↓</button>`;
+  } else {
+    const N = NODES[state.id];
+    summaryEl.innerHTML = `<span class="pill pill-rg">${REG[N.rg]}</span><b>${label(state.id)}</b><span>${N.what[0]}</span><button type="button" class="more" data-more>설명 ↓</button>`;
+  }
+}
+
+const li = arr => arr.map(x => `<li>${x}</li>`).join('');
+function drugDetail(d){
+  return `<div class="d-head" data-cls="${d.cls}"><span class="pill">${CLS[d.cls].label}</span><h2>${d.name}</h2><p class="en">${d.en}${d.products ? ' · ' + d.products : ''}</p></div>
+  <dl class="facts">
+    <div><dt>표적</dt><dd>${d.target}<span class="ttype">${d.ttype}</span></dd></div>
+    <div><dt>지도 위치</dt><dd class="links">${d.nodes.map(([n, p]) => `<button type="button" class="link" data-node="${n}">${label(n)}${p ? '' : '<small>부가</small>'}</button>`).join('')}</dd></div>
+  </dl>
+  <div class="d-grid" data-cls="${d.cls}">
+    <section class="card"><h3>작용 기전</h3><ol class="chain">${li(d.mech)}</ol></section>
+    <section class="card"><h3>왜 쓰나</h3><ul class="bul">${li(d.why)}</ul>${d.dose ? `<p class="dose"><b>용법 예</b>${d.dose}</p>` : ''}</section>
+    <section class="card"><h3>부작용과 그 이유</h3><dl class="ae">${d.ae.map(([a, w]) => `<div><dt>${a}</dt>${w ? `<dd><b>왜?</b>${w}</dd>` : ''}</div>`).join('')}</dl></section>
+    <section class="card"><h3>주의 · 상호작용</h3><ul class="bul">${li(d.caution)}</ul></section>
+  </div>`;
+}
+function nodeDetail(id){
+  const N = NODES[id], acts = actingOn(id);
+  return `<div class="d-head"><span class="pill pill-rg">${REG[N.rg]}</span><h2>${label(id)}</h2></div>
+  <div class="d-grid">
+    <section class="card"><h3>무슨 일이 일어나나</h3>${N.what.map(p => `<p>${p}</p>`).join('')}</section>
+    ${N.causes ? `<section class="card"><h3>왜 생기나 · 이 단계를 키우는 원인</h3><ul class="bul">${li(N.causes)}</ul></section>` : ''}
+    <section class="card"><h3>여기에 작용하는 약</h3>${acts.length
+      ? `<div class="dlinks">${acts.map(a => `<button type="button" class="dlink${a.primary ? '' : ' sub'}" data-drug="${a.d.id}" data-cls="${a.d.cls}"><b>${a.d.name}</b><span>${a.primary ? sym(a.d) + ' 주 작용점' : '⊣ 부가 작용'} · ${a.d.targetShort}</span></button>`).join('')}</div>`
+      : `<p class="muted">이 단계를 직접 겨냥하는 약은 없습니다.</p>`}${N.extra ? `<p class="note">${N.extra}</p>` : ''}</section>
+  </div>`;
+}
+function overviewDetail(){
+  return `<div class="d-head"><h2>약물 한눈에 보기</h2><p class="muted">통풍 치료는 두 시간축으로 나뉩니다. 단기에는 결정이 일으킨 염증을 끄고, 장기에는 요산을 낮춰 결정 자체를 없앱니다. 수용체에 붙는 약은 스테로이드(GR)와 아나킨라(IL-1R1)뿐이고, 나머지는 효소·수송체·구조단백질·사이토카인을 겨냥합니다.</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>약</th><th>분류</th><th>표적</th><th>표적 종류</th><th>지도 위치</th></tr></thead><tbody>${
+    DRUGS.map(d => `<tr data-cls="${d.cls}"><td><button type="button" class="rowbtn" data-drug="${d.id}">${d.name}</button></td><td><span class="pill">${CLS[d.cls].short}</span></td><td class="mono">${d.targetShort}</td><td>${d.ttype}</td><td>${label(mainNode(d))}</td></tr>`).join('')
+  }</tbody></table></div>`;
+}
+function paintDetail(){
+  detailEl.innerHTML = state.mode === 'drug' ? drugDetail(D[state.id]) : state.mode === 'node' ? nodeDetail(state.id) : overviewDetail();
+}
+function render(){ paintMap(); paintChips(); paintSummary(); paintDetail(); }
+
+/* ---------- scrolling helpers ---------- */
+const stickyBottom = () => getComputedStyle(controls).position === 'sticky' ? controls.getBoundingClientRect().bottom : 0;
+function reveal(id, force){
+  const N = NODES[id], r = svg.getBoundingClientRect(), s = r.width / 1200;
+  const cx = N.x + N.w / 2, cy = N.y + N.h / 2;
+  if (mapScroll.scrollWidth > mapScroll.clientWidth) mapScroll.scrollTo({ left: Math.max(0, cx * s - mapScroll.clientWidth / 2), behavior: beh() });
+  const y = r.top + cy * s, top = stickyBottom();
+  if (force || y < top + 40 || y > innerHeight - 40) window.scrollTo({ top: window.scrollY + y - (top + (innerHeight - top) / 2), behavior: beh() });
+}
+function toDetail(){
+  const y = detailEl.getBoundingClientRect().top + window.scrollY - stickyBottom() - 8;
+  window.scrollTo({ top: y, behavior: beh() });
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-more]')){ toDetail(); return; }
+  if (e.target.closest('[data-all]')){ state = { mode:'all' }; render(); return; }
+  const db = e.target.closest('[data-drug]');
+  if (db){
+    state = { mode:'drug', id: db.dataset.drug };
+    render();
+    reveal(mainNode(D[state.id]), !!db.closest('#detail'));
+    return;
+  }
+  const nb = e.target.closest('[data-node]');
+  if (nb){
+    const id = nb.getAttribute('data-node');
+    state = { mode:'node', id };
+    render();
+    if (nb.closest('#detail')) reveal(id, true);
+  }
+});
+svg.addEventListener('keydown', e => {
+  const g = e.target.closest && e.target.closest('[data-node]');
+  if (g && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); state = { mode:'node', id: g.getAttribute('data-node') }; render(); }
+});
+
+render();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(paintMap);
+})();
+</script>
+</body>
+</html>
